@@ -27,7 +27,6 @@ services:
   backend:
     build:
       context: backend
-      target: builder
     restart: always
     secrets:
       - db-password
@@ -45,7 +44,7 @@ services:
     restart: always
     ports:
       - 80:80
-    depends_on: 
+    depends_on:
       - backend
     networks:
       - frontnet

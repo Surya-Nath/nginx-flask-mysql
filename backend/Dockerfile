@@ -1,35 +1,25 @@
-# syntax=docker/dockerfile:1.4
-FROM --platform=$BUILDPLATFORM python:3.10-alpine AS builder
+FROM python:3.10-alpine
 
 WORKDIR /code
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    FLASK_APP=hello.py \
+    FLASK_RUN_PORT=8000 \
+    FLASK_RUN_HOST=0.0.0.0
+
+RUN addgroup -S app && adduser -S app -G app
+
 COPY requirements.txt /code
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip3 install -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
-COPY . .
+COPY hello.py /code
+RUN chown -R app:app /code
 
-ENV FLASK_APP hello.py
-ENV FLASK_ENV development
-ENV FLASK_RUN_PORT 8000
-ENV FLASK_RUN_HOST 0.0.0.0
-
+USER app
 EXPOSE 8000
 
-CMD ["flask", "run"]
-
-FROM builder AS dev-envs
-
-RUN <<EOF
-apk update
-apk add git
-EOF
-
-RUN <<EOF
-addgroup -S docker
-adduser -S --shell /bin/bash --ingroup docker vscode
-EOF
-
-# install Docker tools (cli, buildx, compose)
-COPY --from=gloursdocker/docker / /
+HEALTHCHECK --interval=10s --timeout=3s --retries=5 \
+  CMD python -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/')"
 
 CMD ["flask", "run"]
