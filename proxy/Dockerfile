@@ -1,2 +1,8 @@
-FROM nginx:1.13-alpine
+FROM nginx:1.27-alpine
+
 COPY conf /etc/nginx/conf.d/default.conf
+
+EXPOSE 80
+
+HEALTHCHECK --interval=10s --timeout=3s --retries=3 \
+  CMD wget -qO- http://127.0.0.1/ >/dev/null || exit 1
