@@ -1,0 +1,67 @@
+- hosts: app
+  become: true
+  tasks:
+    - name: Install docker
+      apt:
+        name: [docker.io, docker-compose-v2, unzip, curl]
+        update_cache: true
+
+    - name: Install awscliv2
+      shell: |
+        curl -sS "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+        unzip -qo /tmp/awscliv2.zip -d /tmp
+        /tmp/aws/install --update
+      args:
+        creates: /usr/local/bin/aws
+
+    - name: User in docker group
+      user:
+        name: ubuntu
+        groups: docker
+        append: true
+
+    - name: App dirs
+      file:
+        path: "{{ item }}"
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+      loop:
+        - /home/ubuntu/app
+        - /home/ubuntu/app/db
+
+    - name: Copy compose
+      copy:
+        src: files/compose.prod.yaml
+        dest: /home/ubuntu/app/compose.yaml
+        owner: ubuntu
+
+    - name: Copy db password
+      copy:
+        src: files/db/password.txt
+        dest: /home/ubuntu/app/db/password.txt
+        owner: ubuntu
+        mode: "0600"
+
+    - name: ECR login
+      shell: |
+        aws ecr get-login-password --region ap-south-1 | \
+          docker login --username AWS --password-stdin \
+          413816840602.dkr.ecr.ap-south-1.amazonaws.com
+
+    - name: Compose pull
+      command: docker compose pull
+      args:
+        chdir: /home/ubuntu/app
+
+    - name: Compose up
+      command: docker compose up -d
+      args:
+        chdir: /home/ubuntu/app
+
+    - name: Curl localhost
+      command: curl -sI http://127.0.0.1/
+      register: home
+      retries: 12
+      delay: 5
+      until: home.rc == 0

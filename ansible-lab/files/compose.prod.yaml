@@ -14,9 +14,7 @@ services:
       retries: 10
       start_period: 30s
     secrets:
-      - source: db-password
-        target: db-password
-        mode: 0444
+      - db-password
     volumes:
       - db-data:/var/lib/mysql
     networks:
