@@ -1,0 +1,61 @@
+services:
+  db:
+    image: mariadb:10-focal
+    command: "--default-authentication-plugin=mysql_native_password"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          'mysqladmin ping -h 127.0.0.1 --password="$$(cat /run/secrets/db-password)" --silent',
+        ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 30s
+    secrets:
+      - db-password
+    volumes:
+      - db-data:/var/lib/mysql
+    networks:
+      - backnet
+    environment:
+      MYSQL_DATABASE: example
+      MYSQL_ROOT_PASSWORD_FILE: /run/secrets/db-password
+    expose:
+      - "3306"
+
+  backend:
+    image: 413816840602.dkr.ecr.ap-south-1.amazonaws.com/week2-flask:latest
+    restart: unless-stopped
+    secrets:
+      - db-password
+    networks:
+      - backnet
+      - frontnet
+    depends_on:
+      db:
+        condition: service_healthy
+    expose:
+      - "8000"
+
+  proxy:
+    image: 413816840602.dkr.ecr.ap-south-1.amazonaws.com/week2-nginx:latest
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - frontnet
+    depends_on:
+      - backend
+
+volumes:
+  db-data:
+
+secrets:
+  db-password:
+    file: db/password.txt
+
+networks:
+  backnet:
+  frontnet:
