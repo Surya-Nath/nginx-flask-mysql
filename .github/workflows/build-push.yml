@@ -1,0 +1,29 @@
+name: build-and-push
+on:
+  push:
+    branches: [ main ]
+env:
+  AWS_REGION: ap-south-1
+jobs:
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+      - name: Build and push flask + nginx
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          SHA: ${{ github.sha }}
+        run: |
+          docker build -t $REGISTRY/week2-flask:$SHA -t $REGISTRY/week2-flask:latest ./backend
+          docker build -t $REGISTRY/week2-nginx:$SHA -t $REGISTRY/week2-nginx:latest ./proxy
+          docker push $REGISTRY/week2-flask:$SHA
+          docker push $REGISTRY/week2-flask:latest
+          docker push $REGISTRY/week2-nginx:$SHA
+          docker push $REGISTRY/week2-nginx:latest
